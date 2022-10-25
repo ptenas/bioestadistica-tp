@@ -1,0 +1,634 @@
+---
+output: pdf_document
+header-includes:
+  - \usepackage{float}
+---
+```{r,include=FALSE}
+
+library(ggplot2)
+library(ggpubr)
+library(nortest)
+library(car)
+library(PairedData)
+library(gmodels)
+library(samplesizeCMH)
+library(oddsratio)
+library(survival)
+library(epiR)
+library(dplyr)
+library(DescTools)
+library(knitr)
+library(magrittr)
+library(TukeyC)
+library(Rmisc)
+library(multcompView)
+library(pROC)
+library(readxl)
+library(xtable)
+
+suppressPackageStartupMessages(library(survminer))
+setwd('C:/Users/p_ten/OneDrive/Documentos/Facultad/Bioestadistica/Parcial')
+
+```
+
+
+\newcommand{\HRule}{\rule{\linewidth}{0.5mm}}
+
+\begin{titlepage}
+\begin{center}
+
+
+\textsc{\LARGE  Bioestadística}\\[0.8cm]
+
+\textsc{\Large Instituto Tecnológico de Buenos Aires}\\[1cm]
+
+{\HRule
+{ \Huge \bfseries Parcial Bioestadistica 2021-1Q\\[0.4cm] }
+\HRule \\[2.5cm]}
+
+{\raggedright{}
+\large
+\emph{Profesores:}\\[0.2cm]
+\ \  Victoria \textsc{Santa María}\\
+\ \  Eugenia Camila \textsc{Berrino}\\
+ \ \ Luciana \textsc{Montivero}\\[1.5cm]
+}
+
+
+
+{\raggedright{}
+\large
+\emph{Alumna:}\\[0.2cm]
+\ \  Priscilla \textsc{Tenas Vai}\\[1.5cm]
+}
+
+{\raggedright{}
+\large
+\emph{Fecha de entrega:}\\[0.2cm]
+\ \  1º cuatrimestre 2021\\[1.5cm]
+}
+
+
+\end{center}
+
+\end{titlepage}
+
+
+\clearpage
+\tableofcontents
+\clearpage
+
+\section*{Parcial Bioestadistica 2021-1Q} 
+
+\textbf{Hopper y Seeman (1994) realizaron un estudio de gemelas monocigotas (idénticas) y dicigotas (mellizas) para estudiar la relación entre densidad mineral ósea (DMO) y consumo de cigarrillos. En el estudio participaron 41 pares de mujeres de mediana edad con historias diferentes para el consumo de tabaco. La historia de consumo de tabaco fue relevada mediante una encuesta y luego se las invito al hospital a realizar la densitometría ósea. En cada par hay una gemela no fumadora o cuyo consumo de tabaco es bajo y una gemela fumadora cuyo consumo de tabaco es mucho mayor que el de su hermana. El consumo de tabaco se registró usando la variable paquetes-año. La medida paquete-año se calcula multiplicando el número de paquetes de cigarrillos por día (aproximadamente unos 20 cigarrillos por paquete) consumidos por el número de años que la persona ha fumado. Por ejemplo, un paquete por año es igual a fumar un atado de cigarrillos por día durante un año o dos atados por día durante medio año. DMO fue medida en la espina lumbar (g/cm2) y en el eje femoral (g/cm2). También se registraron la edad, la altura (cm), el peso (kg) y el consumo de alcohol (tragos/semana) de cada participante.}
+\textbf{Se quiere saber si hay evidencia de una relación entre DMO y el uso de tabaco. Los datos se encuentran en el archivo DMO.csv.}
+
+```{r}
+d_osea <-read.csv("DMO.csv")
+kable(data.frame(Variable = names(d_osea), Tipo = sapply(d_osea, class), 
+                 row.names = NULL))
+```
+
+
+## 1) A que tipo de diseño experimental cree que corresponde el trabajo plateado?
+
+Se busca observar el cambio en la densidad mineral osea (DMO) de una población especifica en relación al consumo de tabaco de la misma en un tiempo determinado, por ende se puede decir que el tipo de estudio es un corte transversal. 
+
+
+## 2) Defina la pregunta (PICO) de la investigación.
+
+\begin{itemize}
+
+\item \textbf{P:} Mujeres gemelas monocigotas y dicigotas de mediana edad con historias diferentes para el consumo de tabaco.
+
+\item \textbf{I:} Consumo de tabaco como factor de riesgo. 
+
+\item \textbf{C:} Entre gemela fumadora y gemela cuyo consumo de tabaco es menor.
+
+\item \textbf{O:} DMO en la espina lumbar ($g/cm^2$) y en el eje femoral ($g/cm^2$).
+
+\end{itemize}
+
+## 3) ¿Qué tipo de sesgos le parece que puede presentar el diseño experimental?
+
+El diseño experimental puede presentar los siguientes sesgos:
+
+\begin{itemize}
+
+\item \textbf{Sesgo de recuerdo y de informacion:} los datos respecto al consumo de tabaco y de alcohol de la población utilizada son recolectados a través de una encuesta por lo que puede haber un error debido a que el paciente oculte información o no recuerde correctamente lo consumido. Por un lado, puede haber cambios en el consumo anual en relación al diario de una persona. Por otro lado, la medida utilizada de consumo de alcohol no es correcta ya que un trago no implica una concentración de alcohol en la bebida. Las medidas tanto de tabaco como de alcohol no son necesariamente uniformes para todos los sujetos de las muestras.  
+
+\item \textbf{Sesgo de selección:} la población utilizada es únicamente de zonas aledañas a donde se mida la DMO. Ademas, solo se utilizaron mujeres de mediana edad por lo que no se puede generalizar para la población en general. 
+
+
+
+\end{itemize}
+
+
+## 4) Identifique las variables y clasifíquelas según rol (respuesta o explicatoria, tipo, unidad y distribución de probabilidades. Plantee que test utilizaría para realizar la comparación entre los grupos. (Justifique sus respuestas)
+
+Las variables que presenta el estudio son las siguientes:
+\begin{itemize}
+
+\item \textbf{Id:} es una variable numérica que identifica a cada par de mujeres. No se tiene en cuenta para el análisis. 
+
+\item \textbf{Edad:} Es una variable cuantitativa continua explicatoria. Determinada por la edad de las hermanas. 
+
+\item \textbf{Altura:} Se tomara en cuenta la variable cuantitativa continua explicatoria que determina la diferencia de altura (cm) entre las hermanas. 
+
+\item \textbf{Peso:} Se tomara en cuenta la variable cuantitativa continua explicatoria que determina la diferencia del peso (kg) entre las hermanas. 
+
+\item \textbf{Paquetes por año:} Se tomara en cuenta la variable cuantitativa continua explicatoria que determina la diferencia entre el consumo de paquetes de cigarrillos anual entre las hermanas. 
+
+
+\item \textbf{Consumo de alcohol:} Se tomara en cuenta la variable cuantitativa continua explicatoria que determina la diferencia de consumo de alcohol en tragos/semana entre las hermanas. 
+
+
+\item \textbf{DMO femoral:} DMO medida en el eje femoral en (g/cm2). Variable cuantitativa continua.
+
+
+\item \textbf{DMO lumbar:} DMO medida en la espina lumbar en (g/cm2). Variable cuantitativa continua.
+
+\end{itemize}
+
+Se observa la normalidad de cada una de las variables a partir de la función \textbf{testNormalidad}. Se tienen en cuenta los siguientes puntos para indicar si la variable posee distribución normal. 
+
+\begin{itemize}
+    \item Los histogramas con forma acampanada marcada corresponden a distribuciones normales, las asimetrias suelen presentarse cuando la distribución no es normal. 
+    \item La dispersión de los puntos en el Q-Q plot muestra la similitud de las distribuciones utilizadas en la comparación. En este caso se utiliza una variable con distribución desconocida comparada con la distribución normal, por lo que valores fuera del intervalo de confianza o dispersas respecto de la recta ideal tienden a mostrar que la variable no posee distribución normal. Si los valores se superponen con la recta ideal y no sobresalen del intervalo de confianza se puede decir que tiene distribución normal. 
+    \item La variable puede tener distribución normal a pesar de que Q-Q plot tenga \textit{outliers} siempre y cuando sea congruente con los otros tests. 
+    \item Cuando los p-value y los gráficos no determinan con exactitud si la variable se puede considerar normal, hay que apelar a cuan robustos son los métodos de evaluación de la distribución de la misma. 
+    \item Para definir si una variable tiene distribución normal es conveniente combinar distintos tests estadísticos y métodos gráficos. 
+\end{itemize}
+
+```{r}
+testNormalidad <- function(x, xlab='datos', ylab='Densidad', main='Titulo'){
+  print(shapiro.test(x))
+  print(lillie.test(x))
+  print(ggqqplot(x, main= main, col = "lightseagreen"))
+  min <- min(x)
+  max <- max(x)
+  media <- mean(x)
+  des <- sd(x)
+  hist(x, freq = FALSE, 
+       main = main, xlab = xlab, ylab = ylab, border = 'black', 
+       col = "lightpink2")
+  curve(dnorm(x, media, des), min, max, add = TRUE,
+        col="lightseagreen",lwd=2.5)
+}
+
+```
+
+### Edad
+```{r}
+testNormalidad(d_osea$Edad, main='Test de Normalidad para la Altura')
+```
+En este caso, los p-value de ambos test son menores a 0,05 por lo que se rechaza la hipótesis nula y se acepta la hipótesis alternativa que sostiene que la distribución no es normal.
+En los gráficos se aprecia que la variable no tiene distribución normal. El histograma no presenta distribución acampanada. En el Q-Q plot se observa que gran parte de los valores no están dentro del intervalo de confianza, además tienen una distribución dispersa respecto de la recta de distribución ideal.
+Se concluye que la variable Edad no tiene distribución normal.
+
+### Altura
+```{r}
+testNormalidad(d_osea$alturadif, main='Test de Normalidad para la Altura')
+```
+En este caso, se puede ver como p-value para el test de Shapiro - Wilk toma valores mayores a 0,05 por lo que se determinaría que posee distribución normal. Por otro lado, se puede ver
+que el test de Kolmogorov -Smirnov muestra un p-value menor a 0,05 por lo que se rechaza la hipótesis nula, que como ya se dijo, afirma que la variable tiene distribución normal.
+
+Gráficamente, se puede ver en el Q-Q plot que la distribución esta fuera de los parámetros aceptables de normalidad. Por otro lado, el histograma presenta asimentría.
+
+Los gráficos son concluyentes con el resultado del test de Kolmogorov - Smirnov por lo que se determina que la variable Altura no tiene distribución normal. 
+
+### Peso
+```{r}
+testNormalidad(d_osea$pesodif, main='Test de Normalidad para el Peso')
+```
+
+En este caso, los p-value de ambos test son menores a 0,05 por lo que se rechaza la hipótesis nula y se acepta la hipótesis alternativa que sostiene que la distribución no es normal.
+
+En los gráficos se aprecia que la variable no tiene distribución normal. El histograma no presenta distribución acampanada. En el Q-Q plot se puede apreciar que los valores cercanos al centro están dentro de los parámetros ideales de normalidad, mientras que los demás puntos tienen una distribución dispersa respecto de la recta de distribución ideal.
+
+Analíticamente se concluye que la distribución de la variable Peso no es normal. Esta inferencia esta apoyada por el histograma que como ya se dijo presenta forma asimétrica. 
+
+
+### Consumo de Alcohol
+
+```{r}
+testNormalidad(d_osea$alcoholdif, main='Test de Normalidad para el Consumo de Alcohol')
+```
+
+Analíticamente se observa que los p-value de ambos test son menores a 0,05 por lo que se rechaza la hipótesis nula y se acepta la hipótesis alternativa que sostiene que la distribución no es normal.
+
+En los gráficos se aprecia que la variable no tiene distribución normal. El histograma presenta distribución asimétrica. En el Q-Q plot se puede apreciar que los valores centrales están dentro del intervalo de confianza del 95\%, mientras que los puntos de los extremos tienen una distribución dispersa respecto de la recta de distribución ideal.
+
+Analítica y gráficamente se concluye que la distribución de la variable Consumo de Alcohol no es normal. 
+
+### Paquetes por año
+
+```{r}
+testNormalidad(d_osea$paqyeardif, main='Test de Normalidad para Paquetes por Año')
+```
+
+Analíticamente se observa que los p-value de ambos test son menores a 0,05 por lo que se rechaza la hipótesis nula y se acepta la hipótesis alternativa que sostiene que la distribución no es normal.
+
+Gráficamente se puede observar que, por un lado, el histograma no presenta una forma acampanada. Por otro lado, el Q-Q plot presenta los puntos dentro del intervalo de confianza por lo que se podría llegar a inferir que la distribución es normal. 
+
+Analíticamente se concluye que la distribución de la variable Peso no es normal. Esta inferencia esta apoyada por el histograma que como ya se dijo presenta forma asimétrica, a pesar de lo observado en el Q-Q plot. 
+
+
+### DMO Femoral
+
+```{r}
+testNormalidad(d_osea$DMOfemoraldif, main='Test de Normalidad para DMO Femoral')
+```
+
+Analíticamente observamos que ambos test observados (Shapiro-Wilk y Kolmogorov-Smirnov) dieron que no se rechaza la hipótesis nula que establece que la distribución de la variable es normal, esto se observa en el p-valor que es mayor que el nivel de significancia.
+
+Gráficamente, se puede ver en el Q-Q plot que la distribución esta dentro de los parámetros aceptables de normalidad. Por otro lado, en el histograma se observa que los valores están distribuidos de forma casi equitativa, siguiendo la forma esperable del mismo.
+
+Analítica y gráficamente se concluye que la variable DMO Femoral tiene distribución normal.
+
+### DMO Lumbar
+
+```{r}
+testNormalidad(d_osea$DMOlumbardif, main='Test de Normalidad para DMO Lumbar')
+```
+
+Analíticamente observamos que ambos test observados (Shapiro-Wilk y Kolmogorov-Smirnov) dieron que no se rechaza la hipótesis nula que establece que la distribución de la variable es normal, esto se observa en el p-valor que es mayor a 0,05 (valor convencional para el nivel de significancia).
+
+Gráficamente, se puede ver en el Q-Q plot  que la distribución esta dentro de los parámetros aceptables de normalidad, los puntos están dispersos respecto de la recta ideal pero están dentro del intervalo de confianza. Por otro lado, el histograma tiene forma acampanada.
+
+Analítica y gráficamente se concluye que la variable DMO Lumbar tiene distribución normal.
+
+
+Para realizar comparaciones entre los grupos se utilizará el test Wilcoxon para aquellas variables que no posean distribución normal. Las hipótesis de este test son las siguientes:
+
+\begin{itemize}
+
+\item H$_1$: $\theta _1 \, - \theta_2 \, = \, 0 $. Las medianas de la variable en cuestión para ambas hermanas son iguales. 
+
+\item H$_1$: $\theta_1 \, - \theta_2 \, \not= \, 0 $.  Las medianas son distintas.  
+
+\end{itemize}
+
+
+Para el caso de las variables que poseen distribución normal se utiliza el test Z ya que el test T es para variables con menos de 30 muestras. En este caso se tienen 41 muestras. Las hipótesis para el test Z son las siguientes:
+
+\begin{itemize}
+
+\item H$_1$: $\mu_1 \, - \mu_2 \, = \, 0 $ Las medias de la variable en cuestión para ambas hermanas son iguales. 
+
+
+\item H$_1$: $\mu_1 \, - \mu_2 \, \not= \, 0 $ Las medias de la variable en cuestión para ambas hermanas son iguales. 
+
+\end{itemize}
+
+Este test es de dos colas con intervalo de confianza del 95\% por lo que el valor de significancia es de 0.05. Se rechaza la hipótesis nula en el caso de que el p-value sea menor al nivel de significancia y el resultado obtenido es estadísticamente significativo. 
+
+\begin{table}[H]
+\begin{tabular}{lllccc}
+\hline
+\textbf{Variable}  & \multicolumn{1}{c}{\textbf{Tipo}} & \multicolumn{1}{c}{\textbf{Rol}} & \textbf{Unidad} & \textbf{distribución Normal} & \textbf{Test} \\ \hline
+Edad               & Cuant. continua                   & Explicatoria                     & Años            & No                           & Wilcoxon             \\
+Altura             & Cuant. continua                   & Explicatoria                     & cm              & No                           & Wilcoxon      \\
+Peso               & Cuant. continua                   & Explicatoria                     & kg              & No                           & Wilcoxon      \\
+Consumo de Alcohol & Cuant. continua                   & Explicatoria                     & Tragos/semana   & No                           & Wilcoxon      \\
+Paquetes por año   & Cuant. continua                   & Explicatoria                     & Paquetes/Año    & No                           & Wilcoxon      \\
+DMO Femoral        & Cuant. continua                   & Respuesta                        & g/cm$^2$        & Sí                           & Test Z        \\
+DMO Lumbar         & Cuant. continua                   & Respuesta                        & g/cm$^2$        & Sí                           & Test Z        \\ \hline
+\end{tabular}
+\end{table}
+
+## 5) Analice en forma univariada las diferencias en DMO lumbar y femoral para altura, peso, alcohol y tabaquismo 
+
+Se realizar el análisis univariado se utiliza el test de Wilcoxon. Las hipótesis de este test son las siguientes:
+
+\begin{itemize}
+
+\item H$_1$: $\theta _1 \, - \theta_2 \, = \, 0 $. La mediana de la variable en cuestión no difiere de la mediana de la variable respuesta.
+
+\item H$_1$: $\theta_1 \, - \theta_2 \, \not= \, 0 $.  Las medianas son distintas.  
+
+\end{itemize}
+
+
+### Edad
+#### DMO lumbar y edad
+
+```{r}
+wilcox.test(d_osea$Edad,d_osea$DMOlumbardif,paired = T, conf.int =0.95)
+```
+Como se puede observar, el p-value es menor a 0.05 por lo que se rechaza la hipótesis nula. Por lo que se infiere que las variables Edad y DMOlumbardif están relacionadas.
+
+#### DMO femoral y edad
+
+```{r}
+wilcox.test(d_osea$Edad,d_osea$DMOfemoraldif,paired = T, conf.int =0.95)
+```
+Como se puede observar, el p-value es menor a 0.05 por lo que se rechaza la hipótesis nula. Por lo que se infiere que las variables Edad y DMOfemoraldif están relacionadas.
+
+### Altura
+#### DMO lumbar y altura
+
+```{r}
+wilcox.test(d_osea$alturadif,d_osea$DMOlumbardif,paired = T, conf.int =0.95)
+```
+Como se puede observar, el p-value es mayor a 0.05 por lo que se acepta la hipótesis nula. Por lo que se infiere que la variable alturadif no tiene efecto sobre DMOlumbardif.
+#### DMO femoral y altura
+
+```{r}
+wilcox.test(d_osea$alturadif,d_osea$DMOfemoraldif,paired = T, conf.int =0.95)
+```
+
+
+
+Como se puede observar, el p-value es mayor a 0.05 por lo que se acepta la hipótesis nula. Por lo que se infiere que la variable alturadif no tiene efecto sobre DMOfemoraldif.
+
+### Peso
+#### DMO lumbar y peso
+
+```{r}
+wilcox.test(d_osea$pesodif,d_osea$DMOlumbardif,paired = T, conf.int =0.95)
+```
+
+Como se puede observar, el p-value es mayor a 0.05 por lo que se acepta la hipótesis nula. Por lo que se infiere que la variable pesodif no tiene efecto sobre DMOlumbardif.
+
+
+#### DMO femoral y peso
+
+```{r}
+wilcox.test(d_osea$pesodif,d_osea$DMOfemoraldif,paired = T, conf.int =0.95)
+```
+Como se puede observar, el p-value es mayor a 0.05 por lo que se acepta la hipótesis nula. Por lo que se infiere que la variable pesodif no tiene efecto sobre DMOfemoraldif.
+
+
+### Alcohol
+#### DMO lumbar y alcohol
+
+```{r}
+wilcox.test(d_osea$alcoholdif,d_osea$DMOlumbardif,paired = T, conf.int =0.95)
+```
+Como se puede observar, el p-value es mayor a 0.05 por lo que se acepta la hipótesis nula. Por lo que se infiere que la variable alcoholdif no tiene efecto sobre DMOlumbardif.
+
+#### DMO femoral y alcohol
+
+```{r}
+wilcox.test(d_osea$alcoholdif,d_osea$DMOfemoraldif,paired = T, conf.int =0.95)
+```
+Como se puede observar, el p-value es mayor a 0.05 por lo que se acepta la hipótesis nula. Por lo que se infiere que la variable alcoholdif no tiene efecto sobre DMOfemoraldif.
+
+### Tabaquismo
+#### DMO lumbar y tabaquismo
+
+```{r}
+wilcox.test(d_osea$paqyeardif,d_osea$DMOlumbardif,paired = T, conf.int =0.95)
+```
+Como se puede observar, el p-value es menor a 0.05 por lo que se rechaza la hipótesis nula. Por lo que se infiere que la variable paqyeardif tiene efecto sobre DMOlumbardif.
+
+
+#### DMO femoral y tabaquismo
+
+```{r}
+wilcox.test(d_osea$paqyeardif,d_osea$DMOfemoraldif,paired = T, conf.int =0.95)
+```
+Como se puede observar, el p-value es menor a 0.05 por lo que se rechaza la hipótesis nula. Por lo que se infiere que las variables paqyeardif y DMOfemoraldif están relacionadas.
+
+
+
+
+
+
+
+## 6) ¿Para el análisis multivariado que tipo de modelo utilizaría? (Plantee el modelo para una sola de las variables respuesta)
+
+Dado que la variable respuesta utilizada es una variable numérica continua debemos realizar una regresión lineal múltiple. Se utiliza la variable DMOfemoraldif como variable respuesta. Antes de realizar un modelo de regresión lineal se deben verificar los siguientes supuestos:
+\begin{itemize}
+\item Los residuos deben tener media igual a cero
+\item Los residuos deben tener distribución normal
+\item Se deben cumplir las condiciones de homocedasticidad de la varianza. 
+\end{itemize}
+
+Las hipótesis del modelo de regresión lineal múltiple son:
+
+\begin{itemize}
+\item $H_0$: $\beta_i = 0$ con $ i = [0,\,n]\, \wedge \, i\in \mathbb{Z} $
+\item $H_1$: $\beta_i \not = 0$ con $ i = [0,\,n]\, \wedge \, i\in  \mathbb{Z} $
+\end{itemize}
+
+Donde $\beta_i$ son los coeficientes del modelo para las i variables explicativas utilizadas, y n es la cantidad de variables a utilizar. 
+
+El modelo tendrá la siguiente forma:
+
+$DMOfemoraldif =  \beta_0 + \sum_{j = 1}^{n} \beta_j \cdot x_n$
+
+Donde $x_n$ son las variables explicativas utilizadas en el modelo.
+
+
+## 7) ¿Qué variables agregaría al modelo para un primer análisis? Plantee el modelo teórico para una de las variables respuesta. Corra el modelo e interprete lo resultados.
+
+El modelo a utilizar será el siguiente, el cual contiene todas las variables explicativas antes mostradas.
+
+\begin{center}
+ $E(Y X) = \beta_0 + \beta_1 \cdot Edad + \beta_2 \cdot alturadif + + \beta_3 \cdot pesodif + \beta_4 \cdot alcoholdif + \beta_5 \cdot paqyeardif$
+\end{center}
+
+Para la linealización de los datos, lo supuestos que se deben evaluar son:
+\begin{itemize}
+\item Los residuos deben tener media igual a cero
+\item Los residuos deben tener distribución normal
+\item Se deben cumplir las condiciones de homocedasticidad de la varianza. 
+\end{itemize}
+
+A continuación, se plantea el modelo y se evalúan los supuestos.
+
+```{r}
+multi <- lm(DMOfemoraldif ~ Edad + alturadif + pesodif + alcoholdif + paqyeardif, data = d_osea)
+residuos = residuals(multi)
+mean(residuos)
+```
+
+Se puede observar una media muy cercana a cero por lo que se cumple que la media de los residuos es igual a cero. Posteriormente, se realiza el test de normalidad a los mismos, el cual tiene como hipótesis nula que
+la distribución de los residuos es normal.
+
+
+```{r}
+testNormalidad(residuos,main="Test de Normalidad de los Residuos")
+```
+Se puede ver como p-value para el test de Shapiro -Wilk toma valor 0.3726 y el test de Kolmogorov -Smirnov muestra un p-value de 0.4791, por lo que al ser ambos mayores que 0.05 (valor convencional de significancia) se rechaza la hipótesis alternativa y se acepta la nula que afirma que la variable tiene distribución normal. 
+
+
+Como podemos ver gráficamente en el Q-Q plot que no se presentan outliers y la distribución de puntos se aproxima bastante a lo ideal. El histograma se asemeja a la curva de distribución normal. 
+
+Por lo que, se infiere que los residuos tienen distribución normal. Se procede a evaluar la homocedasticidad de la varianza a partir de la dispersión de los residuos.
+
+```{r}
+residualPlot(multi)
+```
+Como se puede ver, los residuos cumplen con el supuesto de homocedasticidad, dado que no tienen ninguna
+tendencia y se encuentran distribuidos de forma pareja alrededor del cero.
+
+Finalmente, se cumplen todos los supuestos para realizar la linealización de los datos y se utiliza la “multi” planteada anteriormente. 
+
+A continuación, se observan los resultados del modelo planteado
+```{r}
+summary(multi)
+```
+
+
+Las hipótesis del test para los coeficientes de regresión son:
+
+\begin{itemize}
+\item $H_0$: $\beta_i = 0$ con $ i = 0,\,1,\,2,\,3,\,4,\,5$
+\item $H_1$: $\beta_i \not = 0$ con $ i = 0,\,1,\,2,\,3,\,4,\,5$
+\end{itemize}
+
+Se puede observar que para las variables Intercept, Edad, alturadif, alcoholdif y paqyeardif, el p-value es mayor a 0.05 por lo que se rechaza la hipótesis alternativa, y se acepta la nula. De esta forma se infiere que $\beta_i = 0$ con $ i = 0,\,1,\,2,\,4,\,5$. 
+
+El p-value para la variable pesodif es menor al nivel de significancia. Por lo que, se rechaza la hipótesis nula y se acepta la hipótesis nula que establece $\beta_3 \not = 0$. Se infiere el valor de $\beta_3 =  2.552e^{-3}$. 
+
+Se concluye que hay correlación estadísticamente significativa entre la variable pesodif y la variable respuesta DMOfemoraldif,, $\beta_3$ es estadísticamente significativa. Mientras que, las demás variables utilizadas no tienen correlación estadísticamente significativa con la variable respuesta, no aportan al modelo planteado. 
+
+El valor de R$^2$ es de 0.1285, por lo que al no ser un valor cercano a 1, se puede decir que el ajuste de datos no es correcto.  
+
+
+## 8) Del modelo planteado en la pregunta 7 ¿Qué variables conservaría? Corra el modelo e interprete lo resultados. ¿Cómo lo compararía con el modelo anterior?
+
+Se realiza un modelo alternativo al planteado en la pregunta 7 teniendo en cuenta los resultados obtenidos en el modelo "multi" así como los resultados obtenidos en el estudio univariado presentado anteriormente. El modelo "multi2" posee las variables estadísticamente significativas del modelo "multi" y las variables estadísticamente significativas del estudio univariado. 
+
+Para la linealización de los datos, como ya se mencionó, lo supuestos que se deben evaluar son:
+\begin{itemize}
+\item Los residuos deben tener media igual a cero
+\item Los residuos deben tener distribución normal
+\item Se deben cumplir las condiciones de homocedasticidad de la varianza. 
+\end{itemize}
+
+El modelo "multi2" será el siguiente:
+\begin{center}
+ $E(Y X) = \beta_0 + \beta_1 \cdot Edad + \beta_2 \cdot pesodif + \beta_3 \cdot  paqyeardif$
+\end{center}
+
+```{r}
+multi2 <- lm(DMOfemoraldif ~ Edad + pesodif + paqyeardif, 
+             data = d_osea)
+residuos2 = residuals(multi2)
+mean(residuos2)
+```
+
+
+Se puede observar una media igual a $-3.346813e^{-20}$, muy cercana a cero por lo que se infiere que la media de los residuos es igual a cero. Posteriormente, se realiza el test de normalidad a los mismos, el cual tiene como hipótesis nula que la distribución de los residuos es normal.
+
+
+```{r}
+testNormalidad(residuos2,main="Test de Normalidad de los Residuos ('Multi2')")
+```
+Se puede ver como p-value para el test de Shapiro - Wilk toma valor 0.4655 y el test de Kolmogorov - Smirnov muestra un p-value de 0.518, por lo que al ser ambos mayores que 0.05 (valor convencional de significancia) se rechaza la hipótesis alternativa y se acepta la nula que afirma que la variable tiene distribución normal. 
+
+Como podemos ver gráficamente en el Q-Q plot los puntos están dentro del intervalo de confianza y la distribución de puntos se aproxima bastante a lo ideal. El histograma se asemeja a la curva de distribución normal. 
+
+Por lo que, se infiere que los residuos tienen distribución normal. Se procede a evaluar la homocedasticidad de la varianza a partir de la dispersión de los residuos.
+
+```{r}
+residualPlot(multi)
+```
+Como se puede ver, los residuos cumplen con el supuesto de homocedasticidad, dado que no tienen ninguna tendencia y se encuentran distribuidos de forma pareja alrededor del cero.
+
+Finalmente, se cumplen todos los supuestos para realizar la linealización de los datos y se utiliza la “multi” planteada anteriormente. 
+
+A continuación, se observan los resultados del modelo planteado
+```{r}
+summary(multi2)
+```
+
+
+
+Las hipótesis del test para los coeficientes de regresión son:
+
+\begin{itemize}
+\item $H_0$: $\beta_i = 0$ con $ i = 0,\,1,\,2,\,3$
+\item $H_1$: $\beta_i \not = 0$ con $ i = 0,\,1,\,2,\,3$
+\end{itemize}
+
+Se consideran los siguientes puntos:
+
+\begin{itemize}
+\item $\beta_0 \, \rightarrow$ Se puede observar que la variable Intercept tiene un p-value de 0.1418, por lo que se rechaza la hipótesis alternativa y se acepta la nula. Por lo que se infiere que $\beta_0 = 0$.
+
+\item $\beta_1 \, \rightarrow$ El p-value de Edad es mayor que 0.05 por lo que se acepta la hipótesis nula, rechazando la hipótesis alternativa. Se infiere que $\beta_1 = 0$. 
+
+\item $\beta_2 \, \rightarrow$ El p-value de pesodif es menor al nivel de significancia, por lo que se rechaza la hipótesis nula. Se infiere que $\beta_2 = 0.0025544$.
+
+\item $\beta_2 \, \rightarrow$ El p-value de paqyeardif es 0.7785, mayor que el nivel de significancia, por lo que se acepta la hipótesis nula. Se infiere que $\beta_3 = 0$.
+
+\end{itemize}
+
+Finalmente, el modelo esta definido por: $E = 0.0025544 \cdot pesodif$. 
+Hay correlación estadísticamente significativa entre las variables pesodif con DMOfemoraldif, mientras que no hay correlación estadísticamente significativa entre las variables Edad y paqyeardif con DMOfemoraldif, no aportan al modelo planteado. 
+
+El valor de R$^2$ es de 0.1418, por lo que al no ser un valor cercano a 1, se puede decir que el ajuste de datos no es bueno. 
+
+El modelo "multi" tiene un valor de R$^2$ menor que el modelo "multi2", por lo que este último tiene mejor ajuste de datos, aunque ninguno es confiable ya que el valor es lejano a 1. 
+
+## 9) Resuma los datos del análisis multivariado en una tabla y elabore una conclusión. 
+
+Se presentan en la siguiente tabla las variables consideradas en el modelo Modelo "Multi" (pregunta 7) y si fueron estadísticamente significativas.
+\begin{table}[H]
+\centering
+\begin{tabular}{ll}
+\hline
+\textbf{Variable}  & \multicolumn{1}{c}{\textbf{Significancia}} \\ \hline
+Intercept          & No significativo                           \\
+Edad               & No significativo                           \\
+Altura             & No significativo                           \\
+Peso               & Significativo                              \\
+Consumo de Alcohol & No significativo                           \\
+Paquetes por año   & No significativo                           \\ \hline
+\end{tabular}
+\end{table}
+
+Por otro lado, se pueden ver en la siguiente tabla las variables del Modelo "Multi2" (pregunta 8) y si fueron estadísticamente significativas.
+\begin{table}[H]
+\centering
+\begin{tabular}{ll}
+\hline
+\textbf{Variable} & \multicolumn{1}{c}{\textbf{Significancia}} \\ \hline
+Intercept         & No significativo                           \\
+Edad              & No significativo                           \\
+Peso              & Significativo                              \\
+Paquetes por año  & No significativo                           \\ \hline
+\end{tabular}
+\end{table}
+
+En la siguiente tabla se pueden apreciar los valores de R$^2$ de cada uno de los modelos. 
+
+\begin{table}[H]
+\centering
+\begin{tabular}{@{}lrr@{}}
+\toprule
+\textbf{}                & \multicolumn{1}{c}{\textbf{R$^2$}} & \multicolumn{1}{c}{\textbf{R$^2$ ajustado}} \\ \midrule
+\textbf{Modelo "Multi"}  & 0.2374                             & 0.1285                                      \\
+\textbf{Modelo "Multi2"} & 0.2062                             & 0.1418                                      \\ \bottomrule
+\end{tabular}
+\end{table}
+
+
+
+
+
+A partir de lo observado en las tablas expuestas se puede concluir que:
+\begin{itemize}
+
+\item En ambos modelos se puede ver que la variable que se comporta estadísticamente significativa es la misma, esta es pesodif. En el primer modelo se tuvieron en cuenta todas las variables y en el segundo solamente las que se observaron en el análisis univariado y pesodif.
+
+\item En ambos modelos se observo que la variable Intercept no era estadísticamente significativa, y se infirió un valor de $\beta_0 = 0$, por lo que si no había modificaciones en las variables a considerar, el DMO femoral no cambiaba lo que es de esperar. 
+
+\item Ambos modelos presentan un valor de R$^2$ muy bajo por lo que no se ajustan bien a los datos.
+
+\item Los datos no fueron estadísticamente significativos para determinar una relación entre la DMO y el consumo de tabaco. Se debería indagar en otros métodos para observar si hay un modelo que se ajuste mejor a los datos y confirme la relación buscada por el estudio. 
+
+
+\end{itemize}
+
+
+
+
+
+
+
